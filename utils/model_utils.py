@@ -31,8 +31,8 @@ def load_large_model(model_id, quantize=False, add_peft=False, hf_token=None):
     :param hf_token: Token for HuggingFace model hub. Required to access Mistral models.
     :return:
     """
-    if hf_token is None:
-        hf_token = os.environ['HF_TOKEN']
+    # if hf_token is None:
+    #     hf_token = os.environ['HF_TOKEN']
 
     model_path = MODEL_IDENITFIER[model_id]
     dtype = torch.float32 if model_id == 'gpt2' else torch.float16
@@ -257,8 +257,8 @@ def project_into_vocabluary(vector, E, tokenizer, top_k=20, bottom_k=-1):
     :param bottom_k: How many bottom tokens to return. If -1, return top_k tokens
     :return:
     """
-    vector = vector.to(torch.float32).to('cuda')
-    E = E.to(torch.float32).to('cuda')
+    vector = vector.to(torch.float32).to("cpu")
+    E = E.to(torch.float32).to("cpu")
     vocab_ranking = torch.matmul(E, vector)     # (V,)
     sorted_token_ids = np.argsort(vocab_ranking.detach().cpu().numpy())[::-1]  # Descending order
     if bottom_k == -1:

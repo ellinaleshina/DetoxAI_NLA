@@ -1,0 +1,17 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.poetry]
+name = "detox"
+version = "0.1"
+description = "A project for AI toxicity detection"
+
+[tool.poetry.dependencies]
+python = "^3.9"
+numpy = "*"
+pandas = "*"
+torch = "*"
+
+[tool.poetry.dev-dependencies]
+pytest = "*"

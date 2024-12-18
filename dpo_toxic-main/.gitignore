@@ -1,13 +1,8 @@
-# Project directories
-.idea
-data/
-outputs/
-plots/
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
+*.swp
 
 # C extensions
 *.so
@@ -164,9 +159,3 @@ cython_debug/
 #  and can be added to the global gitignore or merged into this file.  For a more nuclear
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
-
-*.lock
-*.json
-
-'detox-edit'/hub/
-*.yaml
