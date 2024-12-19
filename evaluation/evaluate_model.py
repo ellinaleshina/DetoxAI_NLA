@@ -5,7 +5,7 @@ import logging
 import numpy as np
 from tqdm import tqdm
 from detoxify import Detoxify
-from utils.model_utils import get_model_max_len
+from detox_utils.model_utils import get_model_max_len
 
 
 filenames = {
@@ -169,7 +169,7 @@ def evaluate_model(model, tokenizer, return_toxicity=True, return_perplexity=Tru
         os.system(f'rm {filedir}/intervene_data.zip')                                   # Delete the zip file
         os.system(f'mv {filedir}/intervene_data/* {filedir}')  # Move the files in the subdirectory to the parent directory
         os.system(f'rm -r {filedir}/intervene_data')  # Delete the subdirectory
-        assert os.path.exists(os.path.join(filedir, 'challenge_prompts.jsonl')), 'Evaluation data download failed.'
+        # assert os.path.exists(os.path.join(filedir, 'challenge_prompts.jsonl')), 'Evaluation data download failed.'
         logging.info('Done.')
 
     model.eval()
@@ -180,6 +180,7 @@ def evaluate_model(model, tokenizer, return_toxicity=True, return_perplexity=Tru
     if return_toxicity:
         tox = toxicity_over_dataset(model, tokenizer, challenge_prompts)
         logging.info(f'Toxicity scores (%): {100 * tox}')
+
     if return_perplexity:
         ppl = perplexity_over_dataset(model, tokenizer, wiki_samples)
         logging.info(f'Perplexity: {ppl}')

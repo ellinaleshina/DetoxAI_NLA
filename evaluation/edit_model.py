@@ -6,7 +6,7 @@ currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentfram
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, parentdir)
 
-from utils.startup import main
+from detox_utils.startup import main
 parser = argparse.ArgumentParser(description='DeTox')
 parser.add_argument('--config_file', default='gpt2-medium.ini', type=str, help='Config Filename. E.g. gpt2-medium.ini')
 
@@ -17,7 +17,7 @@ config = main(config_filename=config_filename)
 import numpy as np
 from detox import DeToxEdit
 from evaluate_model import evaluate_model
-from utils.model_utils import load_large_model
+from detox_utils.model_utils import load_large_model
 
 
 

@@ -9,11 +9,14 @@ import json
 import torch
 import logging
 import numpy as np
+from sklearn.utils.extmath import randomized_svd
 from copy import deepcopy
-from utils.model_utils import (project_into_vocabluary, is_key, is_value,
+from detox_utils.model_utils import (project_into_vocabluary, is_key, is_value,
                                get_lm_head, get_last_transformer_layer,
                                get_num_transformer_layers, get_hidden_dim, get_model_category)
 
+
+svd_rank_approx = 2
 
 class DeToxEdit():
     def __init__(self, model, tokenizer, pref_data_dps, centering=True, top_k_ranks=2, edit_layer_range=None, random_dps=True):
@@ -41,8 +44,13 @@ class DeToxEdit():
     def _load_preference_data(self):
         num_dps = self.pref_data_dps
         filedir = os.path.join(os.environ["DATASET_DIR"], 'toxicity_pairwise')
-        filepath = os.path.join(filedir, 'split_0.jsonl')
+        print(os.environ["DATASET_DIR"])
+        filepath = os.path.join(filedir, 'split_0_small.jsonl')
+        print(filepath)
+        print(filedir)
 
+        filepath = "/home/aaliev/DetoxAI_NLA/toxicity_pairwise/split_0.jsonl"
+        # filepath = "/home/aaliev/DetoxAI_NLA/sentiment_split"
         if not os.path.exists(filepath):
             logging.info('Preference data not found. Downloading...')
             os.makedirs(filedir, exist_ok=True)
@@ -149,12 +157,15 @@ class DeToxEdit():
             for layer_num in range(preference_matrix.shape[0]):
                 d = preference_matrix[layer_num].to(torch.float32)
                 pref = deepcopy(preferred_sent_embs[layer_num].to(torch.float32))
-
-                u, s, vt = torch.linalg.svd(pref, full_matrices=False)  # (N, D) -> (N, N), (N,), (N, D)
-                projection_vector = vt[0].unsqueeze(dim=-1)  # (D, 1)
-                P = projection_vector @ projection_vector.T  # (D, D)
+                noise_level = float(os.environ['noise_level'])  # Control the magnitude of the noise
+                magnitude_scale = torch.abs(pref)
+                pref_noisy = pref + noise_level * magnitude_scale * torch.randn_like(pref)  
+                # u, s, vt = torch.linalg.svd(pref, full_matrices=False)  # (N, D) -> (N, N), (N,), (N, D)
+                u, s, vt = randomized_svd(pref_noisy.detach().numpy(), n_components=svd_rank_approx, random_state=0)
+                projection_vector = vt[0][:, np.newaxis]  # (D, 1)
+                P = torch.from_numpy(projection_vector @ projection_vector.T).to(pref.device)  # (D, D)
                 I = torch.eye(projection_vector.shape[0]).to(pref.device)  # (D, D)
-                d = d @ (I - P)  # (N, D) @ (D, D) -> (N, D)
+                d = (d @ (I - P)).to(pref.device)  # (N, D) @ (D, D) -> (N, D)
                 preference_matrix[layer_num] = d.to(preference_matrix[layer_num].dtype) # d
 
         return preference_matrix
@@ -184,9 +195,10 @@ class DeToxEdit():
         for key in ats:
             logging.debug(f'Calculating SVD for: {key}')
             M = ats[key].to(torch.float32)  # SVD function only works with float32
-
-            u, s, vt = torch.linalg.svd(M.cuda(), full_matrices=False)  # Skinny SVD, vt is V^T
-            svd[key] = {'u': u.cpu(), 's': s.cpu(), 'v': vt.T.cpu()}
+            # u, s, vt = torch.linalg.svd(M.cuda(), full_matrices=False)  # Skinny SVD, vt is V^T
+            u, s, vt = randomized_svd(M.detach().numpy(), n_components=svd_rank_approx, random_state=0)
+            # svd[key] = {'u': u.cpu(), 's': s.cpu(), 'v': vt.T.cpu()}
+            svd[key] = {'u': torch.from_numpy(u), 's': torch.from_numpy(s), 'v': torch.from_numpy(vt).T}
         logging.info('SVD of ATS calculated.')
         return svd
 
@@ -207,7 +219,7 @@ class DeToxEdit():
             # Sum outer products of shortlisted ranks
             p_toxic = torch.zeros(self.D, self.D)
             for r in toxic_rank_list:
-                singular_vector = singular_vectors[:, r].unsqueeze(dim=1)  # (D, 1)
+                singular_vector = singular_vectors[:, r][:, np.newaxis]  # (D, 1)
                 p_toxic += singular_vector @ singular_vector.T  # (D, 1) @ (1, D) -> (D, D)
 
                 sorted_tokens = project_into_vocabluary(singular_vector.squeeze(), self.E.cpu(), self.tokenizer, top_k=10)
@@ -219,6 +231,15 @@ class DeToxEdit():
 
 
     def edit_model(self, toxic_subspace, edit_keys=True, edit_values=True, layer_range=None):
+        def serialize_tensors(obj):
+            if isinstance(obj, torch.Tensor):
+                return obj.tolist()
+            if isinstance(obj, dict):
+                return {key: serialize_tensors(value) for key, value in obj.items()}
+            if isinstance(obj, list):
+                return [serialize_tensors(element) for element in obj]
+            return obj
+
         assert edit_keys or edit_values, 'At least one of edit_keys or edit_values should be True'
         logging.info(f'Editing keys: {edit_keys}, Editing values: {edit_values}.')
 
@@ -285,6 +306,7 @@ class DeToxEdit():
         self.setup_for_edits()
 
         # Apply edit
+
         edited_model = self.edit_model(self.toxic_subspace, edit_keys, edit_values, layer_range)
         torch.cuda.empty_cache()
 
