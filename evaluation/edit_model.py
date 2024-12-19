@@ -36,6 +36,12 @@ if lower_layer == -1 or upper_layer == -1:
 else:
     layer_range = np.arange(lower_layer, upper_layer)
 
+# Read configs - edit task
+# toxicity_task = config.getboolean('Edit Task', 'toxicity_task')
+# harmful_dataset = config.get('Edit Task', 'harmful_dataset')
+# harm_category = config.get('Edit Task', 'harm_category')
+
+
 # Read configs - evaluation
 return_perplexity = config.getboolean('Evaluation', 'return_perplexity')
 return_toxicity = config.getboolean('Evaluation', 'return_toxicity')
