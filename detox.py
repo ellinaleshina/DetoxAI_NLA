@@ -252,8 +252,8 @@ class DeToxEdit():
         return self.model
 
 
-    def setup_for_edits(self):
-        ats = self.get_ats()
+    def setup_for_edits(self, data_path):
+        ats = self.get_ats(data_path)
         svd = self.svd_on_ats(ats)
         del ats
         self.toxic_subspace = self.find_p_toxic(svd)
@@ -261,7 +261,7 @@ class DeToxEdit():
         torch.cuda.empty_cache()
 
 
-    def apply_edit_end_to_end(self, edit_keys=True, edit_values=True, layer_range=None):
+    def apply_edit_end_to_end(self, data_path, edit_keys=True, edit_values=True, layer_range=None):
         # Measure speed and memory use
         import time
         import psutil
@@ -270,7 +270,7 @@ class DeToxEdit():
         before_memory = psutil.virtual_memory().used
 
         # Find P_toxic
-        self.setup_for_edits()
+        self.setup_for_edits(data_path)
 
         # Apply edit
         edited_model = self.edit_model(self.toxic_subspace, edit_keys, edit_values, layer_range)
